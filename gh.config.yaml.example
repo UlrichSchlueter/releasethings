@@ -1,0 +1,4 @@
+repo: myuser/myrepo
+searchstrings:
+  - "https://myjiralinkurl"
+  - "https://someotherurl"              
