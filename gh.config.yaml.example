@@ -1,4 +1,12 @@
+#the repo to check 
 repo: myuser/myrepo
+
+#we get all GH PRs in the repo in desc order. 
+#If you know the lowest PR number you can use that cut execution time
+lowestPRnumber: 0
+
+#the script does a straight word by word search for these string
+#to determine if something is a ticket link or not. Freeformat text searches, yeah !
 searchstrings:
-  - "https://myjiralinkurl"
-  - "https://someotherurl"              
+  - https://myjiralinkurl
+  - https://someotherurl

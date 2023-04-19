@@ -6,7 +6,8 @@ import os,sys
 
 GH_TOKEN_ENV="GH_TOKEN"
 config={}
-searchlist=[]
+searchstrings=[]
+lowestPRNumber=0
 
 
 def extractTicketLinkFromDescription(pr):    
@@ -14,15 +15,65 @@ def extractTicketLinkFromDescription(pr):
         return 
        
     for w in pr.body.split()  :        
-            for x in searchlist:
+            for x in searchstrings:
                 if x in w:                    
                     return  w          
     return ""  
+
+
+def getStartAndEndTime(tags, firstTag, secondTag):
+    startcommit=None
+    endcommit=None
+    for tag in tags:
+            if tag.name==firstTag:           
+                startcommit=tag.commit                     
+            elif tag.name==secondTag:            
+                endcommit=tag.commit                        
+            if (not startcommit is None) and (endcommit!=None):
+                break
         
+    fail=False
+    if startcommit is None:
+        print (f'cant find tag:{firstTag}')
+        fail=True
+    if endcommit is None:
+        print (f'cant find tag:{secondTag}')
+        fail=True
+    if fail:
+        return None, None
+
+
+    startPr=startcommit.get_pulls()[0]    
+    endPR=endcommit.get_pulls()[0]
+    startTime=startPr.merged_at
+    endTime=endPR.merged_at
+
+    if startTime>endTime:
+        startTime,endTime=endTime,startTime     
+
+    return startTime,endTime
+
+
+def getStartTime(tags, firstTag):
+    startcommit=None
+    
+    for tag in tags:
+            if tag.name==firstTag:           
+                startcommit=tag.commit                                                                
+                break
+            
+    if startcommit is None:
+        print (f'cant find tag:{firstTag}')
+        return None
+    
+    startPr=startcommit.get_pulls()[0]    
+    startTime=startPr.merged_at
+   
+    return startTime
 
 def main():
-
-    if len(sys.argv)<3:
+    global searchstrings
+    if len(sys.argv)<2:
         print("Usage: <startTag> <endTag>")
         exit(2)
 
@@ -32,7 +83,8 @@ def main():
         
     with open("gh.config.yaml", "r") as ymlfile:
         config = yaml.safe_load(ymlfile)    
-        searchlist=config["searchstrings"]
+        searchstrings=config["searchstrings"]
+        lowestPRNumber=config["lowestPRnumber"]
 
     gh_token=os.environ.get(GH_TOKEN_ENV)
 
@@ -41,46 +93,32 @@ def main():
 
     tags=repo.get_tags()
     firstTag=sys.argv[1]
-    secondTag=sys.argv[2]
+    if len(sys.argv)<3:
+        secondTag=""
+    else:
+        secondTag=sys.argv[2]
     
-    found=0
-    startcommit=None
-    endcommit=None
-    for tag in tags:
-        if tag.name==firstTag:           
-            startcommit=tag.commit            
-            found+=1
-        elif tag.name==secondTag:            
-            endcommit=tag.commit            
-            found+=1        
-        if found==2:
-            break
-    
-    fail=False
-    if startcommit is None:
-        print (f'cant find tag:{firstTag}')
-        fail=True
-    if endcommit is None:
-        print (f'cant find tag:{secondTag}')
-        fail=True
-    if fail:
-        exit(8)
+ 
+    startTime=None
+    endTime=None
+    if secondTag!="":
+        startTime, endTime=getStartAndEndTime(tags, firstTag, secondTag)
+        if startTime==None:
+            exit(8)
+    else:
+        endTime=datetime.now()
+        startTime =getStartTime(tags, firstTag)
+        if startTime==None:
+            exit(8)
 
-   
-    startPr=startcommit.get_pulls()[0]    
-    endPR=endcommit.get_pulls()[0]
-    startTime=startPr.merged_at
-    endTime=endPR.merged_at
-   
-    if startTime>endTime:
-        startTime,endTime=endTime,startTime        
+    
     
     pulls = repo.get_pulls(state="all",direction="desc" ,base='master')
     for pr in pulls:
-        if pr.number < 2200:
-            break  
-        if pr.number ==2750:
-            pass       
+        if pr.number < lowestPRNumber:
+            break    
+        if pr.number ==2760:
+            pass   
         if pr.merged_at is None:           
             continue
         mergedat=pr.merged_at
